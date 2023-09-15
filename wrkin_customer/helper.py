@@ -58,39 +58,25 @@ def otpValidator(data):
               }
         return res
     try:
-        country_code = data['country_code']
+        otp_id = data['otp_id']
     except:
         res = {
                 'status':False,
-                'mesage':'country_code is required'
+                'mesage':'otp_id is required'
                 }
         return res
-    if not isinstance(country_code,(int)):
+    if not isinstance(otp_id,(int)):
         res = {
                 'status':False,
-                'message':'please provide a valid country_code'
+                'message':'please provide a valid otp_id'
                 }
         return res
     try:
-        phone_no = data['phone_no']
+        OtpVerify.objects.get(id = otp_id)
     except:
         res = {
                 'status':False,
-                'mesage':'phone_no is required'
-                }
-        return res
-    if not isinstance(phone_no,(int)):
-        res = {
-                'status':False,
-                'message':'please provide a valid phone_no'
-                }
-        return res
-    try:
-        CustomerUser.objects.get(country_code = country_code,phone_no=phone_no)
-    except:
-        res = {
-                'status':False,
-                'message':'phone_no not registered, please talk to admin'
+                'message':'otp invalid otp_id'
             }
         return res
     
@@ -98,3 +84,18 @@ def otpValidator(data):
             'status':True
           }
     return res
+
+
+def retryOtpValidator(data):
+    try:
+        otp_id = data['otp_id']
+    except:
+        res = {
+                'status':False,
+                'message':'otp_id is required'
+            }
+        return res
+    res = {
+            'status':True
+         }
+    return res    
