@@ -13,8 +13,7 @@ from django.http import HttpResponse
 #----------------------------restAPI--------------------------------------------------
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-# from rest_framework.decorators import parser_classes
-# from rest_framework.parsers import MultiPartParser,FormParser
+from custom_jwt import generateJwtToken,verifyJwtToken
 
 
 # Create your views here.
@@ -41,18 +40,28 @@ def login(request):
                     'message':'invalid credentials'
                   }
             return Response(res)
-        res = {
-                'status':True,
-                'message':'login successful',
-                'token':user.token
-              }
-        return Response(res)
-
-        return Response(res)
-
+        generate_jwt_token = generateJwtToken(user.id)
+        if generate_jwt_token['status']:
+            user.token = generate_jwt_token['token']
+            user.save()
+            res = {
+                    'status':True,
+                    'message':'login successful',
+                    'token':generate_jwt_token['token']
+                }
+            return Response(res)
 
 # def index(request):
 #     password = "wrkinakansha"
 #     output = make_password(password)
 #     return HttpResponse(output)
+
+
+@api_view(['GET'])
+def index(request):
+    new_pass = make_password('12345678')
+    AdminUser.objects.update(password = new_pass)
+
+    obj = AdminUser.objects.values()
+    return Response(obj)
 

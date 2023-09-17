@@ -142,3 +142,4 @@ CORS_ORIGIN_ALLOW_ALL = True
 CORS_ORIGIN_WHITELIST = (
                             'http://localhost:8081',
                         )
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")

@@ -1,5 +1,6 @@
 from wrkin_customer.models import *
 from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator
+from custom_jwt import generateJwtToken,verifyJwtToken
 #-----------------------query related-------------------------------------------------
 from django.db.models import Avg,Count,Case, When, IntegerField,Sum,FloatField,CharField
 from django.db.models import F,Func,Q
@@ -15,6 +16,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 # from rest_framework.decorators import parser_classes
 # from rest_framework.parsers import MultiPartParser,FormParser
+#---------------------------python----------------------------------------------------
+from django.conf import settings
+import jwt
 from datetime import datetime
 
 # Create your views here.
@@ -36,14 +40,23 @@ def get_otp(request):
         try:
             otp_obj = OtpVerify.objects.get(country_code = data['country_code'],phone_no = data['phone_no'])
             prev_otp_time = current_time - otp_obj.created_at
-            prev_otp_time = prev_otp_time.total_seconds()/60
-            print(prev_otp_time)
+            prev_otp_time = prev_otp_time.total_seconds()//60
             if prev_otp_time < 30:
-                res = {
-                        'status':False,
-                        'message':'old_otp exist, cannot generate new otp'
-                }
-                return Response(res)
+                if otp_obj.try_count < 3:
+                    otp = 1234
+                    otp_obj.try_count = otp_obj.try_count + 1
+                    res = {
+                            'status':True,
+                            'message':'OTP send successfully',
+                            'otp_id':otp_obj.id
+                        }
+                    return Response(res)
+                else:
+                    res = {
+                            'status':False,
+                            'message':f'Account blocked, please try again after {int(30 - prev_otp_time)} minutes or contact support',
+                        }
+                    return Response(res)
             else:
                 otp_obj.delete()
                 raise Exception
@@ -84,15 +97,32 @@ def verify_otp(request):
                     'message':'invalid otp'
             }
             return Response(res)
-        
-        res = {
-                'status':True,
-                'message':'OTP verified',
-                'token':'demo_token'
-        }
-        otp_obj.delete()
-        return Response(res)
+        try:
+            cust_obj = CustomerUser.objects.get(country_code = otp_obj.country_code,phone_no = otp_obj.phone_no)
+        except:
+            res = {
+                 'status':False,
+                 'message':'something went wrong, please try again'
+            }
+            return Response(res)
+        generate_jwt_token = generateJwtToken(cust_obj.id)
+        if generate_jwt_token['status']:
+            cust_obj.secure_token = generate_jwt_token['token']
+            cust_obj.last_login_at = datetime.now()
+            cust_obj.save()
+            res = {
+                    'status':True,
+                    'message':'OTP verified',
+                    'token':generate_jwt_token['token']
+            }
+            otp_obj.delete()
+        else:
+            res = {
+                    'status':True,
+                    'message':'something went wrong, please try again'
+            }
     
+        return Response(res)
 @api_view(['POST'])
 def retry_otp(request):
     if request.method == 'POST':
@@ -108,11 +138,14 @@ def retry_otp(request):
                     'message':'otp object not found for this number'
             }
             return Response(res)
+        current_time = datetime.now()
+        prev_otp_time = current_time - otp_obj.created_at
+        prev_otp_time = prev_otp_time.total_seconds()//60
         if otp_obj.try_count == 3:
             res = {
                     'status':False,
-                    'message':'max try limit reached, account blocked for sometime'
-            }
+                    'message':f'Account blocked, please try again after {int(30 - prev_otp_time)} minutes or contact support',
+                }
             return Response(res)
         new_otp = 1234
         otp_obj.try_count = otp_obj.try_count + 1

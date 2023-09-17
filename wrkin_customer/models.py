@@ -42,6 +42,7 @@ class CustomerUser(models.Model):
     address = models.TextField(blank=True, null=True)
     image = models.TextField(blank=True, null=True)
     company_profile = models.ForeignKey('CompanyProfile', models.DO_NOTHING, db_column='company_profile', blank=True, null=True)
+    secure_token = models.TextField(blank=True, null=True)
     created_at = models.DateField(blank=True, null=True)
     updated_at = models.DateField(blank=True, null=True)
     last_login_at = models.DateField(blank=True, null=True)
