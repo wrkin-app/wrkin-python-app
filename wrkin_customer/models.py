@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField,JSONField
+from django.utils import timezone
 
 # Create your models here.
 
@@ -43,10 +45,17 @@ class CustomerUser(models.Model):
     image = models.TextField(blank=True, null=True)
     company_profile = models.ForeignKey('CompanyProfile', models.DO_NOTHING, db_column='company_profile', blank=True, null=True)
     secure_token = models.TextField(blank=True, null=True)
-    created_at = models.DateField(blank=True, null=True)
-    updated_at = models.DateField(blank=True, null=True)
-    last_login_at = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+    last_login_at = models.DateTimeField(blank=True, null=True)
     is_enabled = models.BooleanField(blank=True, null=True)
+    is_admin = models.BooleanField(blank=True, null=True)
+    
+    def save(self, *args, **kwargs):
+        # Convert the provided Indian datetime to UTC
+        date_time = timezone.localtime(self.last_login_at, timezone=timezone.get_current_timezone())
+        self.last_login_at = date_time
+        super().save(*args, **kwargs)
 
     class Meta:
         managed = False
@@ -63,4 +72,28 @@ class OtpVerify(models.Model):
         managed = False
         db_table = 'otp_verify'
 
+class Rooms(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    users = ArrayField(models.IntegerField(), blank=True, null=True)
+    active_users = ArrayField(models.IntegerField(), blank=True, null=True)
+    is_enabled = models.BooleanField(blank=True, null=True)
+    is_group = models.BooleanField(blank=True, null=True)
+    group_name = models.TextField(blank=True, null=True)
+    chat_name = models.JSONField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'rooms'
+
+class Chats(models.Model):
+    room = models.ForeignKey('Rooms', models.DO_NOTHING, db_column='room', blank=True, null=True)
+    user = models.ForeignKey('CustomerUser', models.DO_NOTHING, db_column='user', blank=True, null=True)
+    message = models.TextField(blank=True, null=True)
+    is_enabled = models.BooleanField(blank=True, null=True)
+    unread_users = ArrayField(models.IntegerField(), blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'chats'
 

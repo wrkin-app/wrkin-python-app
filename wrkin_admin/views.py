@@ -1,5 +1,5 @@
 from wrkin_admin.models import *
-from wrkin_admin.helper import ROLES_CHOICES,loginValidator
+from wrkin_admin.helper import loginValidator
 #-----------------------query related-------------------------------------------------
 from django.db.models import Avg,Count,Case, When, IntegerField,Sum,FloatField,CharField
 from django.db.models import F,Func,Q
@@ -50,11 +50,6 @@ def login(request):
                     'token':generate_jwt_token['token']
                 }
             return Response(res)
-
-# def index(request):
-#     password = "wrkinakansha"
-#     output = make_password(password)
-#     return HttpResponse(output)
 
 
 @api_view(['GET'])
