@@ -8,5 +8,5 @@ else
 fi
 
 . ./venv/bin/activate
-cd test_cicd
+ls
 pip install -r requirements.txt
