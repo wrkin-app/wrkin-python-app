@@ -7,6 +7,5 @@ else
     echo "virtual environment created"
 fi
 
-. ./venv/bin/activate
-ls
+source ./venv/bin/activate
 pip install -r requirements.txt
