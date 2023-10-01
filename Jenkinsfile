@@ -5,7 +5,7 @@ pipeline{
                 steps{
                 sh """
                     chmod +x virtual_env.sh
-                    ./test_script.sh
+                    ./virtual_env.sh
                    """
                 }
         }
