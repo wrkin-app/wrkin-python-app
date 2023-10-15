@@ -241,10 +241,11 @@ def my_chats(request,**kwargs):
                                                          .values('id','room_id','chat_name','last_message','last_message_time')
         for i in chats:
             for j in i['chat_name']:
-                if j['id'] != user_id:
+                if j['id'] != int(user_id):
+                    print('helloooo',j)
                     i['profile_image'] = CustomerUser.objects.filter(id = j['id']).values_list('image',flat=True).last()
                     i['chat_name'] = j['name']
-                break
+                    break
             if i['last_message_time'].date() == datetime.now().date():
                 i['last_message_time'] = i['last_message_time'].strftime('%H:%M:%S')
             else:
