@@ -236,14 +236,14 @@ def my_chats(request,**kwargs):
         chats = Chats.objects.filter(room_id__in = rooms).annotate(room_name = ExpressionWrapper(Value('abc'),output_field=CharField()),
                                                                    max_id=Subquery(subquery),
                                                                 #    is_group = F('room__is_group'),
-                                                                   group_name = F('room__group_name'),
+                                                                #    group_name = F('room__group_name'),
                                                                    chat_name = F('room__chat_name')
                                                                    )\
                                                         .filter(
                                                                     id=F('max_id')
                                                                 )\
                                                          .order_by('-created_at')\
-                                                         .values('id','room_id','group_name','chat_name')
+                                                         .values('id','room_id','chat_name')
         res = {
                 'status':True,
                 'message':'',
