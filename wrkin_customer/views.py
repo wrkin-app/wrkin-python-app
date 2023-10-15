@@ -5,19 +5,13 @@ from custom_jwt import generateJwtToken,verifyJwtToken
 #-----------------------query related-------------------------------------------------
 from django.db.models import Avg,Count,Case, When,Sum,BooleanField,DateTimeField,IntegerField,CharField
 from django.db.models import F,Func,Q,Value, ExpressionWrapper, fields,OuterRef,Subquery
-from django.db.models.functions import Now,Extract,Cast
+from django.db.models.functions import Now,Extract,Cast,TruncDate
 from django.contrib.auth.hashers import make_password,check_password
 from django.conf import settings
 from django.utils import timezone
-# from django.db.models.functions import Concat,Cast,Substr
-# from django.db.models import Min, Max
-# from django.db.models import Subquery
-# from django.core.files.storage import FileSystemStorage
 #----------------------------restAPI--------------------------------------------------
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-# from rest_framework.decorators import parser_classes
-# from rest_framework.parsers import MultiPartParser,FormParser
 #---------------------------python----------------------------------------------------
 import jwt
 from datetime import datetime
@@ -223,18 +217,19 @@ def my_chats(request,**kwargs):
                 'status':False,
                 'message':'authetication failed'
         }
-        print(res)
         return Response(res)
     if request.method == 'GET':
         user_id = request.META.get('HTTP_USER_ID')
+        print(user_id)
         rooms = Rooms.objects.filter(users__contains = [user_id],is_group = False).values_list('id',flat=True)
 
         subquery = Chats.objects.filter(
                                             room_id=OuterRef('room_id')
                                         ).order_by('-id').values('id')[:1]
-        
         chats = Chats.objects.filter(room_id__in = rooms).annotate(room_name = ExpressionWrapper(Value('abc'),output_field=CharField()),
                                                                    max_id=Subquery(subquery),
+                                                                   last_message = F('message'),
+                                                                   last_message_time = F('created_at'),
                                                                 #    is_group = F('room__is_group'),
                                                                 #    group_name = F('room__group_name'),
                                                                    chat_name = F('room__chat_name')
@@ -243,7 +238,17 @@ def my_chats(request,**kwargs):
                                                                     id=F('max_id')
                                                                 )\
                                                          .order_by('-created_at')\
-                                                         .values('id','room_id','chat_name')
+                                                         .values('id','room_id','chat_name','last_message','last_message_time')
+        for i in chats:
+            for j in i['chat_name']:
+                if j['id'] != user_id:
+                    i['profile_image'] = CustomerUser.objects.filter(id = j['id']).values_list('image',flat=True).last()
+                    i['chat_name'] = j['name']
+                break
+            if i['last_message_time'].date() == datetime.now().date():
+                i['last_message_time'] = i['last_message_time'].strftime('%H:%M:%S')
+            else:
+                i['last_message_time'] = i['last_message_time'].strftime('%d/%m/%Y')
         res = {
                 'status':True,
                 'message':'',
@@ -271,7 +276,7 @@ def my_room_chat(request,**kwargs):
                     'message':'room_id is required'
             }
             return Response(res)
-        chat = Chats.objects.filter(room_id = room_id).values('user_id','message')
+        chat = Chats.objects.filter(room_id = room_id).values('id','user_id','message')
         res = {
                 'status':True,
                 'message':'',
