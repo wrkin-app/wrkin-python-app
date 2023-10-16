@@ -113,8 +113,9 @@ def verify_otp(request):
                     'message':'OTP verified',
                     'token':generate_jwt_token['token'],
                     'user_id':cust_obj.id,
+                    'user_name':cust_obj.name,
                     'org_id':cust_obj.company_profile_id,
-                    'initial_login': initial_login_flag
+                    'initial_login': True
             }
             otp_obj.delete()
         else:
@@ -156,6 +157,42 @@ def retry_otp(request):
         res = {
                 'status':True,
                 'message':'otp resent successfull'
+        }
+        return Response(res)
+
+
+@authRequired
+@api_view(['PATCH'])
+def user_name_update(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'PATCH':
+        user_id = request.META.get('HTTP_USER_ID')
+        name = request.GET.get('name')
+        try:
+            cust_obj = CustomerUser.objects.get(id = int(user_id))
+        except:
+            res = {
+                    'status':False,
+                    'message':'invalid user_id'
+                  }
+            return Response(res)
+        if not name:
+            res = {
+                    'status':False,
+                    'message':'name is required'
+            }
+            return Response(res)
+        cust_obj.name = name
+        cust_obj.save()
+        res = {
+                'status':True,
+                'message':'name updated successfully'
         }
         return Response(res)
 
@@ -225,7 +262,7 @@ def my_chats(request,**kwargs):
                                                                    last_message_time = F('created_at'),
                                                                 #    is_group = F('room__is_group'),
                                                                 #    group_name = F('room__group_name'),
-                                                                   chat_name = F('room__chat_name')
+                                                                   chat_name = F('room__users')
                                                                    )\
                                                         .filter(
                                                                     id=F('max_id')
@@ -234,10 +271,10 @@ def my_chats(request,**kwargs):
                                                          .values('id','room_id','chat_name','last_message','last_message_time')
         for i in chats:
             for j in i['chat_name']:
-                if j['id'] != int(user_id):
-                    print('helloooo',j)
-                    i['profile_image'] = CustomerUser.objects.filter(id = j['id']).values_list('image',flat=True).last()
-                    i['chat_name'] = j['name']
+                if j != int(user_id):
+                    cust_obj = CustomerUser.objects.filter(id = j).values_list('image','name').last()
+                    i['profile_image'] = cust_obj[0]
+                    i['chat_name'] = cust_obj[1].split()[0]
                     break
             if i['last_message_time'].date() == datetime.now().date():
                 i['last_message_time'] = i['last_message_time'].strftime('%H:%M:%S')
@@ -343,7 +380,6 @@ def start_chat(request,**kwargs):
                 }
             return Response(res)
         try:
-            creater_name = CustomerUser.objects.get(id = int(user_id)).name
             reciever_name = CustomerUser.objects.get(id = int(reciever_user_id)).name
         except:
             res = {
@@ -357,15 +393,14 @@ def start_chat(request,**kwargs):
             room_obj = Rooms(
                                 users = [int(user_id),int(reciever_user_id)],
                                 is_enabled = True,
-                                is_group = False ,
-                                chat_name = [{"id": user_id, "name": creater_name}, {"id": reciever_name, "name": reciever_name}],
+                                is_group = False,
                             )
             room_obj.save()
         res = {
                 'status':True,
                 'message':'',
                 'room_id':room_obj.id,
-                'chat_name':reciever_name
+                'chat_name':reciever_name.split()[0]
         }
         return Response(res)
     
