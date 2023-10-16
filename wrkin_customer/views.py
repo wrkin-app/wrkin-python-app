@@ -9,6 +9,7 @@ from django.db.models.functions import Now,Extract,Cast,TruncDate
 from django.contrib.auth.hashers import make_password,check_password
 from django.conf import settings
 from django.utils import timezone
+from django.core.paginator import Paginator
 #----------------------------restAPI--------------------------------------------------
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -19,13 +20,6 @@ import pytz
 
 # Create your views here.
 
-
-@api_view(['GET'])
-def index(request):
-    # res = CustomerUser.objects.values()
-    # return Response(res)
-    obj = Test.objects.filter(tag__contains = [1]).values()
-    return Response(obj)
 
 @api_view(['POST'])
 def get_otp(request):
@@ -220,13 +214,12 @@ def my_chats(request,**kwargs):
         return Response(res)
     if request.method == 'GET':
         user_id = request.META.get('HTTP_USER_ID')
-        print(user_id)
         rooms = Rooms.objects.filter(users__contains = [user_id],is_group = False).values_list('id',flat=True)
 
         subquery = Chats.objects.filter(
                                             room_id=OuterRef('room_id')
                                         ).order_by('-id').values('id')[:1]
-        chats = Chats.objects.filter(room_id__in = rooms).annotate(room_name = ExpressionWrapper(Value('abc'),output_field=CharField()),
+        chats = Chats.objects.filter(room_id__in = rooms).annotate(
                                                                    max_id=Subquery(subquery),
                                                                    last_message = F('message'),
                                                                    last_message_time = F('created_at'),
@@ -266,72 +259,31 @@ def my_room_chat(request,**kwargs):
                 'status':False,
                 'message':'authetication failed'
         }
-        print(res)
         return Response(res)
     if request.method == 'GET':
         user_id = request.META.get('HTTP_USER_ID')
         room_id = request.GET.get('room_id')
+        page_no = request.GET.get('page_no')
         if not room_id:
             res = {
                     'status':False,
                     'message':'room_id is required'
             }
             return Response(res)
-        chat = Chats.objects.filter(room_id = room_id).values('id','user_id','message')
+        if not page_no:
+            res = {
+                    'status':False,
+                    'message':'page_no is required'
+            }
+            return Response(res)
+        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at').order_by('-id')
+        paginator = Paginator(chats, 30)
+        page = list(paginator.get_page(page_no))
+
         res = {
                 'status':True,
                 'message':'',
-                'chat':chat
+                'chat':page[::-1],
             }
         return Response(res)
     
-@api_view(['POST'])
-def test_login(request):
-    if request.method == 'POST':
-        data = request.data
-        phone_no = data['phone_no']
-        try:
-            user = CustomerUser.objects.get(phone_no = phone_no)
-        except:
-            res = {
-                    'status':False,
-                    'message':'Login failed'
-            }
-            return Response(res)
-        res = {
-                'status':True,
-                'message':'Login Success',
-                'user_id':user.id,
-                'user_name':user.name,
-                'secure_token':user.secure_token
-        }
-        return Response(res)
-    
-@api_view(['GET'])
-def test_chat_list(request):
-    user_id = request.GET.get('user_id')
-    print(user_id)
-    rooms = Rooms.objects.filter(users__contains = [user_id]).values_list('id',flat=True)
-
-    subquery = Chats.objects.filter(
-                                        room_id=OuterRef('room_id')
-                                    ).order_by('-id').values('id')[:1]
-    
-    chats = Chats.objects.filter(room_id__in = rooms).annotate(room_name = ExpressionWrapper(Value('abc'),output_field=CharField()),
-                                                                max_id=Subquery(subquery),
-                                                                is_group = F('room__is_group'),
-                                                                group_name = F('room__group_name'),
-                                                                chat_name = F('room__chat_name')
-                                                                )\
-                                                    .filter(
-                                                                id=F('max_id')
-                                                            )\
-                                                        .order_by('-created_at')\
-                                                        .values('id','room_id','is_group','group_name','chat_name')
-    res = {
-            'status':True,
-            'message':'',
-            'chats':chats
-    }
-    print(res)
-    return Response(res)
