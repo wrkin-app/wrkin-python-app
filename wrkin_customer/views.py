@@ -279,7 +279,6 @@ def my_room_chat(request,**kwargs):
         chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at').order_by('-id')
         paginator = Paginator(chats, 30)
         page = list(paginator.get_page(page_no))
-
         res = {
                 'status':True,
                 'message':'',
@@ -287,3 +286,87 @@ def my_room_chat(request,**kwargs):
             }
         return Response(res)
     
+
+@authRequired
+@api_view(['GET'])
+def get_user_list(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        user_id = request.META.get('HTTP_USER_ID')
+        org_id = request.GET.get('org_id')
+        if not org_id:
+            res = {
+                    'status':False,
+                    'message':'org_id is required'
+                }
+            return Response(res)
+        try:
+            org_obj = CompanyProfile.objects.get(id = int(org_id))
+        except:
+            res = {
+                    'status':False,
+                    'message':'invalid org_id'
+            }
+            return Response(res)
+        user_list = CustomerUser.objects.filter(company_profile_id = org_id).exclude(id = user_id).values('id','name','phone_no').order_by('name')
+        res = {
+                'status':True,
+                'message':'',
+                'user_list':user_list
+        }
+        return Response(user_list)
+        
+    
+@authRequired
+@api_view(['POST'])
+def start_chat(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'POST':
+        user_id = request.META.get('HTTP_USER_ID')
+        reciever_user_id = request.GET.get('reciever_user_id')
+        if not reciever_user_id:
+            res = {
+                    'status':False,
+                    'message':'reciever_user_id is required'
+                }
+            return Response(res)
+        try:
+            creater_name = CustomerUser.objects.get(id = int(user_id)).name
+            reciever_name = CustomerUser.objects.get(id = int(reciever_user_id)).name
+        except:
+            res = {
+                    'status':False,
+                    'message':'invalid reciever_user_id'
+            }
+            return Response(res)
+        try:
+            room_obj = Rooms.objects.get(users__contains = [user_id,reciever_user_id],is_group = False)
+        except:      
+            room_obj = Rooms(
+                                users = [int(user_id),int(reciever_user_id)],
+                                is_enabled = True,
+                                is_group = False ,
+                                chat_name = [{"id": user_id, "name": creater_name}, {"id": reciever_name, "name": reciever_name}],
+                            )
+            room_obj.save()
+        res = {
+                'status':True,
+                'message':'',
+                'room_id':room_obj.id,
+                'chat_name':reciever_name
+        }
+        return Response(res)
+    
+
