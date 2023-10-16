@@ -7,5 +7,7 @@ urlpatterns = [
                 path('my_team',my_team,name='my_team'),
                 path('my_chats',my_chats,name='my_chats'),
                 path('my_room_chat',my_room_chat,name='my_room_chat'),
-
+                path('get_user_list',get_user_list,name='get_user_list'),
+                path('start_chat',start_chat,name='start_chat'),
+                
 ]
