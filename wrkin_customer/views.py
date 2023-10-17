@@ -319,7 +319,8 @@ def my_room_chat(request,**kwargs):
         res = {
                 'status':True,
                 'message':'',
-                'chat':page[::-1],
+                # 'chat':page[::-1],
+                'chat':page,
             }
         return Response(res)
     
