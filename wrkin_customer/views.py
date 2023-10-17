@@ -319,11 +319,46 @@ def my_room_chat(request,**kwargs):
         res = {
                 'status':True,
                 'message':'',
-                # 'chat':page[::-1],
-                'chat':page,
+                'chat':page[::-1],
             }
         return Response(res)
     
+
+@authRequired
+@api_view(['GET'])
+def my_room_chat_reversed(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        user_id = request.META.get('HTTP_USER_ID')
+        room_id = request.GET.get('room_id')
+        page_no = request.GET.get('page_no')
+        if not room_id:
+            res = {
+                    'status':False,
+                    'message':'room_id is required'
+            }
+            return Response(res)
+        if not page_no:
+            res = {
+                    'status':False,
+                    'message':'page_no is required'
+            }
+            return Response(res)
+        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at').order_by('-id')
+        paginator = Paginator(chats, 30)
+        page = list(paginator.get_page(page_no))
+        res = {
+                'status':True,
+                'message':'',
+                'chat':page,
+            }
+        return Response(res)
 
 @authRequired
 @api_view(['GET'])
