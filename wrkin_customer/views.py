@@ -313,7 +313,7 @@ def my_room_chat(request,**kwargs):
                     'message':'page_no is required'
             }
             return Response(res)
-        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at').order_by('-id')
+        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at','is_task').order_by('-id')
         paginator = Paginator(chats, 30)
         page = list(paginator.get_page(page_no))
         res = {

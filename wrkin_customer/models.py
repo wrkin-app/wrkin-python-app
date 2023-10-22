@@ -91,9 +91,24 @@ class Chats(models.Model):
     message = models.TextField(blank=True, null=True)
     is_enabled = models.BooleanField(blank=True, null=True)
     unread_users = ArrayField(models.IntegerField(), blank=True, null=True)
+    is_task = models.BooleanField(blank=True, null=True)
+    task = models.ForeignKey('Task', models.DO_NOTHING, db_column='task', blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False
         db_table = 'chats'
 
+
+class Task(models.Model):
+    title = models.TextField(blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    from_user = models.ForeignKey('CustomerUser', models.DO_NOTHING, db_column='from', blank=True, null=True)  # Field renamed because it was a Python reserved word.
+    to_user = models.ForeignKey('CustomerUser', models.DO_NOTHING, db_column='to', related_name='task_to_set', blank=True, null=True)
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
+    priority = models.TextField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'task'
