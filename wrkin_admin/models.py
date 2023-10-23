@@ -15,5 +15,5 @@ class AdminUser(models.Model):
     is_enabled = models.BooleanField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        # managed = False
         db_table = 'admin_user'
