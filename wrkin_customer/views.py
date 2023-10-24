@@ -2,6 +2,7 @@ from wrkin_customer.models import *
 from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator
 from wrkin_customer.decorators import authRequired
 from custom_jwt import generateJwtToken,verifyJwtToken
+from wrkin_customer.serializers import ChatSerializer
 #-----------------------query related-------------------------------------------------
 from django.db.models import Avg,Count,Case, When,Sum,BooleanField,DateTimeField,IntegerField,CharField
 from django.db.models import F,Func,Q,Value, ExpressionWrapper, fields,OuterRef,Subquery
@@ -275,6 +276,7 @@ def my_chats(request,**kwargs):
                     cust_obj = CustomerUser.objects.filter(id = j).values_list('image','name').last()
                     i['profile_image'] = cust_obj[0]
                     i['chat_name'] = cust_obj[1].split()[0]
+                    i['user_id'] = j
                     break
             if i['last_message_time'].date() == datetime.now().date():
                 i['last_message_time'] = i['last_message_time'].strftime('%H:%M:%S')
@@ -313,13 +315,15 @@ def my_room_chat(request,**kwargs):
                     'message':'page_no is required'
             }
             return Response(res)
-        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at','is_task').order_by('-id')
-        paginator = Paginator(chats, 30)
+        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at','is_task','task_id','task__title','task__description','task__from_user_id','task__to_user_id','task__start_date','task__end_date','task__priority').order_by('id')
+        chat_serialized = ChatSerializer(chats,many=True)
+        paginator = Paginator(chat_serialized.data, 30)
         page = list(paginator.get_page(page_no))
+
         res = {
                 'status':True,
                 'message':'',
-                'chat':page[::-1],
+                'chat':page,
             }
         return Response(res)
     
@@ -423,8 +427,9 @@ def start_chat(request,**kwargs):
                     'message':'invalid reciever_user_id'
             }
             return Response(res)
+        user_list = sorted([user_id,reciever_user_id])
         try:
-            room_obj = Rooms.objects.get(users__contains = [user_id,reciever_user_id],is_group = False)
+            room_obj = Rooms.objects.get(users__contains = user_list,is_group = False)
         except:      
             room_obj = Rooms(
                                 users = [int(user_id),int(reciever_user_id)],
@@ -440,4 +445,3 @@ def start_chat(request,**kwargs):
         }
         return Response(res)
     
-

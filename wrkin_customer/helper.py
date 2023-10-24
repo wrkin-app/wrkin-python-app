@@ -29,14 +29,14 @@ def getOtpValidator(data):
                 'message':'please provide a valid phone_no'
                 }
         return res
-    # try:
-    CustomerUser.objects.get(country_code = country_code,phone_no=phone_no)
-    # except:
-        # res = {
-        #         'status':False,
-        #         'message':'phone_no not registered, please talk to admin'
-        #     }
-        # return res
+    try:
+        CustomerUser.objects.get(country_code = country_code,phone_no=phone_no)
+    except:
+        res = {
+                'status':False,
+                'message':'phone_no not registered, please talk to admin'
+            }
+        return res
     res = {
             'status':True
           }
