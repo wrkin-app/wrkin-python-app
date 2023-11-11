@@ -11,5 +11,13 @@ urlpatterns = [
                 path('my_room_chat_reversed',my_room_chat_reversed,name='my_room_chat_reversed'),
                 path('get_user_list',get_user_list,name='get_user_list'),
                 path('start_chat',start_chat,name='start_chat'),
+                path('create_task',create_task,name='create_task'),
+                path('get_single_task',get_single_task,name='get_single_task'),
+                
+                path('test_login',test_login,name='test_login'),
+                path('test_chat_list',test_chat_list,name='test_chat_list'),
+                path('demo',demo,name='demo'),
+                
+                
                 
 ]

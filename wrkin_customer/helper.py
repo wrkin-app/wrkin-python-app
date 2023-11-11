@@ -1,4 +1,5 @@
-from wrkin_customer.models import CustomerUser,OtpVerify
+from wrkin_customer.models import CustomerUser,OtpVerify,Rooms
+from datetime import datetime
 
 def getOtpValidator(data):
     try:
@@ -98,4 +99,118 @@ def retryOtpValidator(data):
     res = {
             'status':True
          }
-    return res    
+    return res   
+
+
+def createTaskvalidator(data):
+    title = data.get('title',False)
+    description = data.get('description',False)
+    from_user = data.get('from',False)
+    to_user = data.get('to',False)
+    start_date = data.get('start_date',False)
+    end_date = data.get('end_date',False)
+    priority = data.get('priority',False)
+
+    if not title:
+        res = {
+                'status':False,
+                'message':'title is required'
+            }
+        return res
+    if not description:
+        res = {
+                'status':False,
+                'message':'description is required'
+            }
+        return res
+    if not from_user:
+        res = {
+                'status':False,
+                'message':'from is required'
+            }
+        return res
+    try:
+        CustomerUser.objects.get(id = from_user)
+    except:
+        res = {
+                'status':False,
+                'message':'invalid from user id'
+            }
+        return res
+    if not to_user:
+        res = {
+                'status':False,
+                'message':'to is required'
+            }
+        return res
+    try:
+        CustomerUser.objects.get(id = to_user)
+    except:
+        res = {
+                'status':False,
+                'message':'invalid to user id'
+            }
+        return res
+    if not start_date:
+        res = {
+                'status':False,
+                'message':'start_date is required'
+            }
+        return res
+    try:
+        datetime.strptime(start_date,"%Y-%m-%d")
+    except:
+        res = {
+                'status':False,
+                'message':'invalid start_date format'
+            }
+        return res
+    if not end_date:
+        res = {
+                'status':False,
+                'message':'end_date is required'
+            }
+        return res
+    try:
+        datetime.strptime(end_date,"%Y-%m-%d")
+    except:
+        res = {
+                'status':False,
+                'message':'invalid end_date format'
+            }
+        return res
+    if not priority:
+        res = {
+                'status':False,
+                'message':'priority is required'
+            }
+        return res
+    if priority not in ['high','low','medium']:
+        res = {
+                'status':False,
+                'message':'invalid value for priority'
+            }
+        return res
+    res = {
+            'status':True,
+            'title':title,
+            'description':description,
+            'from_user':int(from_user),
+            'to_user':int(to_user),
+            'start_date':start_date,
+            'end_date':end_date,
+            'priority':priority
+    }
+    return res
+    
+def getRoomId(user_list):
+    try:
+        room_obj = Rooms.objects.get(users__contains = user_list,is_group = False)
+    except:      
+        room_obj = Rooms(
+                            users = [int(user_list[0]),int(user_list[1])],
+                            is_enabled = True,
+                            is_group = False,
+                        )
+        room_obj.save()
+    return room_obj.id
