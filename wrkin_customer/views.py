@@ -1,5 +1,5 @@
 from wrkin_customer.models import *
-from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator
+from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator,createTaskvalidator,getRoomId
 from wrkin_customer.decorators import authRequired
 from custom_jwt import generateJwtToken,verifyJwtToken
 from wrkin_customer.serializers import ChatSerializer
@@ -116,12 +116,13 @@ def verify_otp(request):
                     'user_id':cust_obj.id,
                     'user_name':cust_obj.name,
                     'org_id':cust_obj.company_profile_id,
+                    'is_admin':cust_obj.is_admin,
                     'initial_login': True
             }
             otp_obj.delete()
         else:
             res = {
-                    'status':True,
+                    'status':False,
                     'message':'something went wrong, please try again'
             }
     
@@ -445,3 +446,113 @@ def start_chat(request,**kwargs):
         }
         return Response(res)
     
+@authRequired
+@api_view(['POST'])
+def create_task(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'POST':
+        data = request.data
+        create_task_validator = createTaskvalidator(data)
+        if create_task_validator['status']:
+            task_obj = Task(
+                                title = create_task_validator['title'],
+                                description = create_task_validator['description'],
+                                from_user_id = create_task_validator['from_user'],
+                                to_user_id = create_task_validator['to_user'],
+                                start_date = create_task_validator['start_date'],
+                                end_date = create_task_validator['end_date'],
+                                priority = create_task_validator['priority'],
+                                status = "pending"
+            )
+            task_obj.save()
+            user_list = sorted([create_task_validator['from_user'],create_task_validator['to_user']])
+            room_id = getRoomId(user_list)
+            chat_obj = Chats(
+                                room_id = room_id,
+                                user_id = int(create_task_validator['from_user']),
+                                is_enabled = True,
+                                is_task = True,
+                                task_id = task_obj.id,
+                                created_at = datetime.now(),
+            )
+            chat_obj.save()
+            res = {
+                    'status':True,
+                    'message':'task created successfully',
+                    'task_id': task_obj.id
+            }
+            return Response(res)
+        else:
+            return Response(create_task_validator)
+
+@authRequired
+@api_view(['GET'])
+def get_single_task(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        task_id = request.GET.get('task_id',False)
+        if not task_id:
+            res = {
+                    'status':False,
+                    'message':'task_id is required'
+            }
+            return Response(res)
+        try:
+            task_obj = Task.objects.filter(id = task_id)
+            if task_obj.count() < 1:
+                raise Exception
+        except:
+            res = {
+                    'status':False,
+                    'message':'invalid task_id'
+            }
+            return Response(res)
+        task_obj = task_obj.annotate(from_name = F('from_user__name'),
+                                     to_name = F('to_user__name')).values().last()
+        res = { 
+                'status':True,
+                'message':'task data',
+                'task':{
+                        'title':task_obj['title'],
+                        'description':task_obj['description'],
+                        'from':task_obj['from_name'],
+                        'to':task_obj['to_name'],
+                        'start_date':task_obj['start_date'],
+                        'end_date':task_obj['end_date'],
+                        'priority':task_obj['priority'],
+                        'status':task_obj['status']
+                }
+        }
+        return Response(res)
+
+@api_view(['POST'])
+def test_login(request):
+    status = {
+                'status':True,
+                'user_id':1,
+                'user_name':'Amrit',
+                'secure_token':'sjdjhsfjdgskfbdjkfgfjk',
+    }
+    return Response(status)
+
+@api_view(['GET'])
+def test_chat_list(request):
+    obj = Rooms.objects.annotate(room_id=F('id')).values('room_id')
+    return Response({'chats':obj})
+
+@api_view(['GET'])
+def demo(request):
+    obj = CustomerUser.objects.values()
+    return Response(obj)
