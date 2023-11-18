@@ -4,6 +4,7 @@ urlpatterns = [
                 path('get_otp',get_otp,name='get_otp'),
                 path('verify_otp',verify_otp,name='verify_otp'),
                 path('retry_otp',retry_otp,name='retry_otp'),
+                path('logout',logout,name='logout'),
                 path('user_name_update',user_name_update,name='user_name_update'),
                 path('my_team',my_team,name='my_team'),
                 path('my_chats',my_chats,name='my_chats'),
@@ -14,9 +15,10 @@ urlpatterns = [
                 path('create_task',create_task,name='create_task'),
                 path('get_single_task',get_single_task,name='get_single_task'),
                 path('get_assigned_task_list',get_assigned_task_list,name='get_assigned_task_list'),
+                path('get_created_task_list',get_created_task_list,name='get_created_task_list'),
                 path('admin_add_people',admin_add_people,name='admin_add_people'),
+                path('create_group',create_group,name='create_group'),
                 
-
                 path('test_login',test_login,name='test_login'),
                 path('test_chat_list',test_chat_list,name='test_chat_list'),
                 path('demo',demo,name='demo'),

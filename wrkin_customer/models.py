@@ -54,7 +54,9 @@ class CustomerUser(models.Model):
     def save(self, *args, **kwargs):
         # Convert the provided Indian datetime to UTC
         date_time = timezone.localtime(self.last_login_at, timezone=timezone.get_current_timezone())
-        self.last_login_at = date_time
+        self.created_at = date_time
+        self.updated_at = date_time
+        
         super().save(*args, **kwargs)
 
     class Meta:
@@ -80,6 +82,7 @@ class Rooms(models.Model):
     is_group = models.BooleanField(blank=True, null=True)
     group_name = models.TextField(blank=True, null=True)
     chat_name = models.JSONField(blank=True, null=True)
+    admin = models.ForeignKey('CustomerUser', models.DO_NOTHING, db_column='admin', blank=True, null=True)
 
     class Meta:
         managed = False
