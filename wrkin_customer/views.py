@@ -1,5 +1,5 @@
 from wrkin_customer.models import *
-from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator,createTaskvalidator,getRoomId
+from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator,createTaskvalidator,getRoomId,groupCreateVaidator
 from wrkin_customer.decorators import authRequired
 from custom_jwt import generateJwtToken,verifyJwtToken
 from wrkin_customer.serializers import ChatSerializer
@@ -17,6 +17,7 @@ from rest_framework.response import Response
 #---------------------------python----------------------------------------------------
 import jwt
 from datetime import datetime,date
+from time import sleep
 import pytz
 
 # Create your views here.
@@ -161,6 +162,28 @@ def retry_otp(request):
                 'message':'otp resent successfull'
         }
         return Response(res)
+
+@authRequired
+@api_view(['GET'])
+def logout(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        user_id = request.META.get('HTTP_USER_ID')
+        cust_obj = CustomerUser.objects.get(id = user_id)
+        cust_obj.secure_token = ''
+        cust_obj.save()
+        res = {
+                'status':True,
+                'message':'user logged out'
+        }
+        return Response(res)
+
 
 
 @authRequired
@@ -319,12 +342,15 @@ def my_room_chat(request,**kwargs):
         chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at','is_task','task_id','task__title','task__description','task__from_user_id','task__to_user_id','task__start_date','task__end_date','task__priority').order_by('-id')
         chat_serialized = ChatSerializer(chats,many=True)
         paginator = Paginator(chat_serialized.data, 30)
-        page = list(paginator.get_page(page_no))
+        if int(page_no) > paginator.num_pages:
+            page = []
+        else:
+            page = list(paginator.get_page(page_no))
 
         res = {
                 'status':True,
                 'message':'',
-                'chat':page,
+                'chat':page
             }
         return Response(res)
     
@@ -433,7 +459,7 @@ def start_chat(request,**kwargs):
             room_obj = Rooms.objects.get(users__contains = user_list,is_group = False)
         except:      
             room_obj = Rooms(
-                                users = [int(user_id),int(reciever_user_id)],
+                                users = user_list,
                                 is_enabled = True,
                                 is_group = False,
                             )
@@ -577,6 +603,43 @@ def get_assigned_task_list(request,**kwargs):
     
 
 @authRequired
+@api_view(['GET'])
+def get_created_task_list(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        user_id = request.META.get('HTTP_USER_ID')
+        task_obj = Task.objects.filter(from_user_id = user_id)
+        pending = task_obj.filter(status = 'pending',end_date__gte = date.today()).count()
+        overdue = task_obj.filter(status = 'pending',end_date__lt = date.today()).count()
+        completed = task_obj.filter(status = 'completed').count()
+        task_list = task_obj.annotate(
+                                        current_status=Case(
+                                                                When(status='pending', end_date__lt=date.today(), then=Value('overdue')),
+                                                                default=F('status'),
+                                                                output_field=models.CharField(),  # Adjust the field type if necessary
+                                                                ),
+                                        assigned_to = F('to_user__name')
+                                    )\
+        .values('id','title','current_status','end_date','assigned_to').order_by('-id')
+
+        res = {
+                'status':True,
+                'message':'',
+                'pending':pending,
+                'overdue':overdue,
+                'completed':completed,
+                'task_list':task_list
+        }
+        return Response(res)
+    
+
+@authRequired
 @api_view(['POST'])
 def admin_add_people(request,**kwargs):
     auth_status = kwargs.get('auth_status')
@@ -590,6 +653,7 @@ def admin_add_people(request,**kwargs):
         user_id = request.META.get('HTTP_USER_ID')
         try:
             user_obj = CustomerUser.objects.get(id = user_id)
+            org_id = user_obj.company_profile_id
         except:
             res = {
                 'status':False,
@@ -614,15 +678,70 @@ def admin_add_people(request,**kwargs):
                     'message':'invalid structure of body'
                 }
                 return Response(res)
-        
-        # for i in people_list:
-        #     try:
-        #         CustomerUser.objects.get(country_code= i['country_code'],phone_no= i['phone_no'])
-        #     except:
-        #         cust_obj = CustomerUser(
+        new_added = []
+        already_existed = []
+        for i in people_list:
+            try:
+                CustomerUser.objects.get(country_code = i['country_code'],phone_no = i['phone_number'])
+                already_existed.append(i)
+            except:
 
-        #         )
-        return Response(people_list)
+                cust_obj = CustomerUser(
+                                            name = i['name'],
+                                            country_code = i['country_code'],
+                                            phone_no = i['phone_number'],
+                                            company_profile_id = org_id,
+                                            is_admin = False,
+                                        )
+                cust_obj.save()
+                new_added.append(i)
+
+        res = {
+                'status':True,
+                'message':'contacts added to orgainzation',
+                'new_added':new_added,
+                'already_existed':already_existed
+
+        }
+        return Response(res)
+    
+@authRequired
+@api_view(['POST'])
+def create_group(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'POST':
+        user_id = request.META.get('HTTP_USER_ID')
+        data = request.data
+        group_create_validator =  groupCreateVaidator(data)
+        if not group_create_validator['status']:
+            return Response(group_create_validator)
+        group_members = data['group_members']
+        group_members.append(int(user_id))
+        group_members = sorted(list(set(group_members)))
+        group_name = data['group_name']
+        room_obj = Rooms(
+                                users = group_members,
+                                group_name = group_name,
+                                admin_id = user_id,
+                                is_enabled = True,
+                                is_group = True,
+                            )
+        # room_obj.save()
+        res = {
+                'status':True,
+                'message':'group created',
+                'room_id':8
+                # 'room_id':room_obj.id
+        }
+        return Response(res)
+    
+
 
 
 

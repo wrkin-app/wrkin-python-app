@@ -1,5 +1,6 @@
 from functools import wraps
 from custom_jwt import verifyJwtToken
+from wrkin_customer.models import CustomerUser
 
 # Define a custom decorator function
 def authRequired(view_func):
@@ -11,6 +12,10 @@ def authRequired(view_func):
         if not secure_token:
             return view_func(request, *args, **kwargs,auth_status=auth_status)
         if not user_id:
+            return view_func(request, *args, **kwargs,auth_status=auth_status)
+        try:
+            CustomerUser.objects.get(id = user_id,secure_token=secure_token)
+        except:
             return view_func(request, *args, **kwargs,auth_status=auth_status)
         verify_jwt_token = verifyJwtToken(secure_token)
         if not verify_jwt_token['status']:

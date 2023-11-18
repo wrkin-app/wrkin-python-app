@@ -214,3 +214,55 @@ def getRoomId(user_list):
                         )
         room_obj.save()
     return room_obj.id
+
+def groupCreateVaidator(data):
+    try:
+        group_members = data['group_members']
+    except:
+        res = {
+                'status':False,
+                'message':'group_members is required'
+        } 
+        return res
+    if not isinstance(group_members,(list)):
+        res = {
+                'status':False,
+                'message':'group_members must be array'
+        }
+        return res
+    if not all(isinstance(x, int) for x in group_members):
+        res = {
+                'status':False,
+                'message':'group_members must be array of integers'
+        }
+        return res
+    try:
+        group_name = data['group_name']
+        group_name = group_name.strip()
+    except:
+        res = {
+                'status':False,
+                'message':'group_name is required'
+        }
+        return res
+    if len(group_name) < 1:
+        res = {
+                'status':False,
+                'message':'group_name must have atleast one character'
+        }
+        return res
+    for i in group_members:
+        try:
+            CustomerUser.objects.get(id = i)
+        except:
+            res = {
+                    'status':False,
+                    'message':'invalid user_id',
+                    'user_id':i
+            }
+            return res
+    res = {
+            'status':True
+    }
+    return res
+    
