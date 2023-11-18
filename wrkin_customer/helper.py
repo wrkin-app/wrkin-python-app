@@ -10,12 +10,6 @@ def getOtpValidator(data):
                 'mesage':'country_code is required'
                 }
         return res
-    # if not isinstance(country_code,(int)):
-    #     res = {
-    #             'status':False,
-    #             'message':'please provide a valid country_code'
-    #             }
-    #     return res
     try:
         phone_no = data['phone_no']
     except:
@@ -24,12 +18,6 @@ def getOtpValidator(data):
                 'mesage':'phone_no is required'
                 }
         return res
-    # if not isinstance(phone_no,(int)):
-    #     res = {
-    #             'status':False,
-    #             'message':'please provide a valid phone_no'
-    #             }
-    #     return res
     try:
         CustomerUser.objects.get(country_code = country_code,phone_no=phone_no)
     except:
@@ -52,24 +40,12 @@ def otpValidator(data):
                 'message':'otp is required'
         }
         return res
-    if not isinstance(otp,(int)):
-        res = {
-                'status':False,
-                'message':'please provide a valid otp'
-              }
-        return res
     try:
         otp_id = data['otp_id']
     except:
         res = {
                 'status':False,
                 'mesage':'otp_id is required'
-                }
-        return res
-    if not isinstance(otp_id,(int)):
-        res = {
-                'status':False,
-                'message':'please provide a valid otp_id'
                 }
         return res
     try:
