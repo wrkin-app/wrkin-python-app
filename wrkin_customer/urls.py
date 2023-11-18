@@ -13,7 +13,10 @@ urlpatterns = [
                 path('start_chat',start_chat,name='start_chat'),
                 path('create_task',create_task,name='create_task'),
                 path('get_single_task',get_single_task,name='get_single_task'),
+                path('get_assigned_task_list',get_assigned_task_list,name='get_assigned_task_list'),
+                path('admin_add_people',admin_add_people,name='admin_add_people'),
                 
+
                 path('test_login',test_login,name='test_login'),
                 path('test_chat_list',test_chat_list,name='test_chat_list'),
                 path('demo',demo,name='demo'),

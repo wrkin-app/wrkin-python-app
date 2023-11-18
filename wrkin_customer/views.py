@@ -16,7 +16,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 #---------------------------python----------------------------------------------------
 import jwt
-from datetime import datetime
+from datetime import datetime,date
 import pytz
 
 # Create your views here.
@@ -117,7 +117,7 @@ def verify_otp(request):
                     'user_name':cust_obj.name,
                     'org_id':cust_obj.company_profile_id,
                     'is_admin':cust_obj.is_admin,
-                    'initial_login': True
+                    'initial_login': initial_login_flag
             }
             otp_obj.delete()
         else:
@@ -316,7 +316,7 @@ def my_room_chat(request,**kwargs):
                     'message':'page_no is required'
             }
             return Response(res)
-        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at','is_task','task_id','task__title','task__description','task__from_user_id','task__to_user_id','task__start_date','task__end_date','task__priority').order_by('id')
+        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at','is_task','task_id','task__title','task__description','task__from_user_id','task__to_user_id','task__start_date','task__end_date','task__priority').order_by('-id')
         chat_serialized = ChatSerializer(chats,many=True)
         paginator = Paginator(chat_serialized.data, 30)
         page = list(paginator.get_page(page_no))
@@ -536,6 +536,95 @@ def get_single_task(request,**kwargs):
                 }
         }
         return Response(res)
+
+
+@authRequired
+@api_view(['GET'])
+def get_assigned_task_list(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        user_id = request.META.get('HTTP_USER_ID')
+        task_obj = Task.objects.filter(to_user_id = user_id,start_date__lte = date.today())
+
+        pending = task_obj.filter(status = 'pending',end_date__gte = date.today()).count()
+        overdue = task_obj.filter(status = 'pending',end_date__lt = date.today()).count()
+        completed = task_obj.filter(status = 'completed').count()
+        task_list = task_obj.annotate(
+                                        current_status=Case(
+                                                                When(status='pending', end_date__lt=date.today(), then=Value('overdue')),
+                                                                default=F('status'),
+                                                                output_field=models.CharField(),  # Adjust the field type if necessary
+                                                                ),
+                                        assignee_name = F('from_user__name')
+                                    )\
+        .values('id','title','current_status','end_date','assignee_name').order_by('-id')
+
+        res = {
+                'status':True,
+                'message':'',
+                'pending':pending,
+                'overdue':overdue,
+                'completed':completed,
+                'task_list':task_list
+        }
+        return Response(res)
+    
+
+@authRequired
+@api_view(['POST'])
+def admin_add_people(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'POST':
+        user_id = request.META.get('HTTP_USER_ID')
+        try:
+            user_obj = CustomerUser.objects.get(id = user_id)
+        except:
+            res = {
+                'status':False,
+                'message':'invalid user'
+                }
+            return Response(res)
+        if not user_obj.is_admin:
+            res = {
+                    'status':False,
+                    'message':'permission not available'
+            }
+            return Response(res)
+        people_list = request.data
+        for i in people_list:
+            try:
+                i['name']
+                i['country_code']
+                i['phone_number']
+            except:
+                res = {
+                    'status':False,
+                    'message':'invalid structure of body'
+                }
+                return Response(res)
+        
+        # for i in people_list:
+        #     try:
+        #         CustomerUser.objects.get(country_code= i['country_code'],phone_no= i['phone_no'])
+        #     except:
+        #         cust_obj = CustomerUser(
+
+        #         )
+        return Response(people_list)
+
+
 
 @api_view(['POST'])
 def test_login(request):
