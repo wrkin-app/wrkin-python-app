@@ -3,6 +3,7 @@ from rest_framework import serializers
 class ChatSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     user_id = serializers.IntegerField()
+    name = serializers.CharField()
     is_task = serializers.BooleanField()
     message = serializers.SerializerMethodField()
     task = serializers.SerializerMethodField()

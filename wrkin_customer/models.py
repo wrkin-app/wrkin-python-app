@@ -83,6 +83,7 @@ class Rooms(models.Model):
     group_name = models.TextField(blank=True, null=True)
     chat_name = models.JSONField(blank=True, null=True)
     admin = models.ForeignKey('CustomerUser', models.DO_NOTHING, db_column='admin', blank=True, null=True)
+    created_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         managed = False

@@ -266,3 +266,24 @@ def groupCreateVaidator(data):
     }
     return res
     
+def getGroupValidator(data):
+    try:
+        group_id = data['group_id']
+    except:
+        res = {
+                    'status':False,
+                    'message':'group_id is required',
+            }
+        return res
+    try:
+        Rooms.objects.get(id = group_id)
+    except:
+        res = {
+                    'status':False,
+                    'message':'invalid group_id',
+            }
+        return res
+    res = {
+            'status':True,
+            }
+    return res

@@ -18,6 +18,9 @@ urlpatterns = [
                 path('get_created_task_list',get_created_task_list,name='get_created_task_list'),
                 path('admin_add_people',admin_add_people,name='admin_add_people'),
                 path('create_group',create_group,name='create_group'),
+                path('my_groups',my_groups,name='my_groups'),
+                path('get_group_details',get_group_details,name='get_group_details'),
+                
                 
                 path('test_login',test_login,name='test_login'),
                 path('test_chat_list',test_chat_list,name='test_chat_list'),

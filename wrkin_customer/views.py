@@ -1,8 +1,9 @@
 from wrkin_customer.models import *
-from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator,createTaskvalidator,getRoomId,groupCreateVaidator
+from wrkin_customer.helper import getOtpValidator,otpValidator,retryOtpValidator,createTaskvalidator,getRoomId,groupCreateVaidator,getGroupValidator
 from wrkin_customer.decorators import authRequired
 from custom_jwt import generateJwtToken,verifyJwtToken
 from wrkin_customer.serializers import ChatSerializer
+from wrkin_customer.messanger import otp_sender
 #-----------------------query related-------------------------------------------------
 from django.db.models import Avg,Count,Case, When,Sum,BooleanField,DateTimeField,IntegerField,CharField
 from django.db.models import F,Func,Q,Value, ExpressionWrapper, fields,OuterRef,Subquery
@@ -19,6 +20,7 @@ import jwt
 from datetime import datetime,date
 from time import sleep
 import pytz
+import random
 
 # Create your views here.
 
@@ -30,7 +32,6 @@ def get_otp(request):
         get_otp_validator = getOtpValidator(data)
         if not get_otp_validator['status']:
             return Response(get_otp_validator)
-        otp = 1234
         current_time = datetime.now()
         try:
             otp_obj = OtpVerify.objects.get(country_code = data['country_code'],phone_no = data['phone_no'])
@@ -38,7 +39,7 @@ def get_otp(request):
             prev_otp_time = prev_otp_time.total_seconds()//60
             if prev_otp_time < 30:
                 if otp_obj.try_count < 3:
-                    otp = 1234
+                    # otp = 1234
                     otp_obj.try_count = otp_obj.try_count + 1
                     res = {
                             'status':True,
@@ -56,6 +57,7 @@ def get_otp(request):
                 otp_obj.delete()
                 raise Exception
         except:
+            otp = random.randint(1000, 9999)
             otp_obj = OtpVerify(
                                     country_code = data['country_code'],
                                     phone_no = data['phone_no'],
@@ -63,6 +65,8 @@ def get_otp(request):
                                     try_count = 1,
                                     created_at = current_time,
                             )
+            otp_sender_res = otp_sender(otp, data['phone_no'])
+            print(otp_sender_res,type(otp_sender_res))
             otp_obj.save()
             res = {
                     'status':True,
@@ -339,13 +343,18 @@ def my_room_chat(request,**kwargs):
                     'message':'page_no is required'
             }
             return Response(res)
-        chats = Chats.objects.filter(room_id = room_id).values('id','user_id','message','created_at','is_task','task_id','task__title','task__description','task__from_user_id','task__to_user_id','task__start_date','task__end_date','task__priority').order_by('-id')
+        chats = Chats.objects.filter(room_id = room_id)\
+                             .annotate(name = F('user__name'))\
+                             .values('id','user_id','name','message','created_at','is_task','task_id','task__title','task__description','task__from_user_id','task__to_user_id','task__start_date','task__end_date','task__priority').order_by('-id')
+        print(chats)
         chat_serialized = ChatSerializer(chats,many=True)
         paginator = Paginator(chat_serialized.data, 30)
         if int(page_no) > paginator.num_pages:
             page = []
         else:
             page = list(paginator.get_page(page_no))
+
+        print(page)
 
         res = {
                 'status':True,
@@ -462,6 +471,7 @@ def start_chat(request,**kwargs):
                                 users = user_list,
                                 is_enabled = True,
                                 is_group = False,
+                                created_at = datetime.now()
                             )
             room_obj.save()
         res = {
@@ -731,8 +741,9 @@ def create_group(request,**kwargs):
                                 admin_id = user_id,
                                 is_enabled = True,
                                 is_group = True,
+                                created_at = datetime.now()
                             )
-        # room_obj.save()
+        room_obj.save()
         res = {
                 'status':True,
                 'message':'group created',
@@ -741,6 +752,65 @@ def create_group(request,**kwargs):
         }
         return Response(res)
     
+@authRequired
+@api_view(['GET'])
+def my_groups(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        user_id = request.META.get('HTTP_USER_ID')
+        groups = Rooms.objects.filter(users__contains = [user_id],is_group = True).values_list('id',flat=True).values('id','group_name','created_at')
+        for i in groups:
+            try:
+                chat_obj = Chats.objects.filter(room_id = i['id']).order_by('-created_by')
+                if chat_obj.count() < 1:
+                    raise Exception
+                i['last_message'] = chat_obj.first()['message']
+                i['last_message_date'] = chat_obj.first()['created_at']
+            except:
+                i['last_message'] = ''
+                i['last_message_date'] = i['created_at']
+        groups = sorted(groups, key=lambda x: x['last_message_date'], reverse=True)
+        res = {
+                'status':True,
+                'message':'',
+                'groups':groups
+        }
+        return Response(res)
+    
+@authRequired
+@api_view(['GET'])
+def get_group_details(request,**kwargs):
+    auth_status = kwargs.get('auth_status')
+    if not auth_status:
+        res = {
+                'status':False,
+                'message':'authetication failed'
+        }
+        return Response(res)
+    if request.method == 'GET':
+        data = request.data
+        get_group_validator = getGroupValidator(data)
+        if not get_group_validator['status']:
+            return Response(get_group_validator)
+        group_id = data['group_id']
+        group_obj = Rooms.objects.get(id = group_id)
+        group_name = group_obj.group_name
+        group_members_ids = group_obj.users
+        group_admin = group_obj.admin_id
+        group_members = CustomerUser.objects.filter(id__in = group_members_ids).values('id','name','image').order_by('name')
+
+        res = {
+                "group_name":group_name,
+                "group_admin":group_admin,
+                "group_members":group_members
+        }
+        return Response(res)
 
 
 
